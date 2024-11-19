@@ -2,239 +2,257 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cybersecurity Attack Representation</title>
+    <title>IT Infrastructure Cyber Attacks Visualization</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
+            background-color: #1e1e1e;
+            color: #ffffff;
             margin: 0;
-            padding: 20px;
-            background-color: #ffffff;
+            padding: 0;
         }
-        svg {
-            display: block;
-            margin: auto;
-            background-color: #f9f9f9;
-            border: 1px solid #ccc;
+        #graph {
+            width: 100%;
+            height: 100vh;
+            overflow: hidden;
         }
         .node {
-            stroke: #333;
+            stroke: #fff;
             stroke-width: 1.5px;
         }
-        .node.server {
-            fill: #4285F4;
-        }
-        .node.device {
-            fill: #FFC107;
-        }
-        .node.user {
-            fill: #69b3a2;
-        }
-        .node.anomaly {
-            fill: red;
-            stroke: darkred;
-        }
         .link {
-            stroke: #999;
+            stroke: #555;
             stroke-opacity: 0.6;
-            marker-end: url(#arrowhead);
         }
-        .link.anomaly {
-            stroke: red;
-            stroke-width: 2px;
-            stroke-dasharray: 5,5;
+        .anomaly {
+            fill: red;
+            stroke: #ff0000;
+            stroke-width: 3px;
         }
-        h1, p {
-            margin-bottom: 10px;
+        .tooltip {
+            position: absolute;
+            text-align: center;
+            padding: 8px;
+            background: rgba(0,0,0,0.7);
+            border-radius: 4px;
+            pointer-events: none;
+            color: #fff;
+            font-size: 12px;
         }
-        #saveBtn {
-            margin: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            display: none;
+        .label {
+            font-size: 12px;
+            pointer-events: none;
+            fill: #ffffff;
         }
     </style>
 </head>
 <body>
-    <h1>Cybersecurity Attack: Graph Anomaly Detection</h1>
-    <p>Nodes: Users, Devices, Servers | Red: Anomalies | Arrows: Data Flow</p>
-    <button id="saveBtn">Save Graph as PNG</button>
-    <svg id="graph" width="800" height="600"></svg>
+    <div id="graph"></div>
+    <div class="tooltip" id="tooltip" style="opacity:0;"></div>
 
+    <!-- D3.js Library -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
-        const nodes = [
-            // Users
-            { id: "User A", type: "user" },
-            { id: "User B", type: "user" },
-            { id: "User C", type: "user" },
-            { id: "User D", type: "user", compromised: true }, // Compromised user
-            { id: "User E", type: "user" },
+        const width = window.innerWidth;
+        const height = window.innerHeight;
 
-            // Devices
-            { id: "Device 1", type: "device" },
-            { id: "Device 2", type: "device" },
-            { id: "Device 3", type: "device" },
-            { id: "Device 4", type: "device", infected: true }, // Infected device
-            { id: "Device 5", type: "device" },
+        const svg = d3.select("#graph").append("svg")
+            .attr("width", width)
+            .attr("height", height)
+            .style("background-color", "#2e2e2e");
 
-            // Servers
-            { id: "Server 1", type: "server" },
-            { id: "Server 2", type: "server" },
-            { id: "Server 3", type: "server" },
-            { id: "Malicious Server", type: "server", anomaly: true },
-            { id: "Unknown Server", type: "server", anomaly: true }
-        ];
+        // Container for all the graph elements
+        const container = svg.append("g");
 
-        const links = [
-            // Normal connections
-            { source: "User A", target: "Device 1" },
-            { source: "User B", target: "Device 2" },
-            { source: "User C", target: "Device 3" },
-            { source: "User D", target: "Device 4" },
-            { source: "User E", target: "Device 5" },
+        // Zoom and pan functionality
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 5])
+            .on("zoom", (event) => {
+                container.attr("transform", event.transform);
+            });
 
-            { source: "Device 1", target: "Server 1" },
-            { source: "Device 2", target: "Server 2" },
-            { source: "Device 3", target: "Server 1" },
-            { source: "Device 4", target: "Server 2" },
-            { source: "Device 5", target: "Server 3" },
+        svg.call(zoom);
 
-            // Anomalous connections
-            { source: "Device 4", target: "Unknown Server", anomaly: true }, // Infected device
-            { source: "Device 1", target: "Malicious Server", anomaly: true },
-            { source: "Device 2", target: "Malicious Server", anomaly: true },
-            { source: "Device 3", target: "Malicious Server", anomaly: true },
-            { source: "Device 5", target: "Malicious Server", anomaly: true },
-            { source: "User D", target: "Server 3", anomaly: true } // Compromised user
-        ];
+        const tooltip = d3.select("#tooltip");
 
-        const svg = d3.select("#graph");
-        const width = +svg.attr("width");
-        const height = +svg.attr("height");
+        // Define the graph data with normal behavior nodes and edges
+        const data = {
+            nodes: [
+                // Infrastructure nodes (Group 1)
+                {id: "Firewall", group: 1},
+                {id: "Router", group: 1},
+                {id: "Switch", group: 1},
+                // Servers (Group 2)
+                {id: "Server1", group: 2},
+                {id: "Server2", group: 2},
+                {id: "Database", group: 2},
+                {id: "EmailServer", group: 2},
+                {id: "WebServer", group: 2},
+                // Workstations and devices (Group 3)
+                {id: "Workstation1", group: 3},
+                {id: "Workstation2", group: 3},
+                {id: "EmployeePC1", group: 3},
+                {id: "EmployeePC2", group: 3},
+                {id: "Printer", group: 3},
+                {id: "Client", group: 3},
+                // Additional devices (Group 4)
+                {id: "BackupServer", group: 4},
+                // Malware propagation nodes (Group 5 - Anomalies)
+                {id: "Infected_Workstation", group: 5},
+                {id: "Infected_Server", group: 5},
+                // Man-in-the-Middle attack node
+                {id: "MITM_Attacker", group: 5},
+                // DDoS attackers
+                {id: "BotnetDevice1", group: 5},
+                {id: "BotnetDevice2", group: 5},
+                {id: "BotnetDevice3", group: 5},
+                {id: "BotnetDevice4", group: 5},
+                {id: "BotnetDevice5", group: 5},
+                // Data exfiltration destination
+                {id: "MaliciousServer", group: 5}
+            ],
+            links: [
+                // Normal connections
+                {source: "Firewall", target: "Router"},
+                {source: "Router", target: "Switch"},
+                {source: "Switch", target: "Server1"},
+                {source: "Switch", target: "Server2"},
+                {source: "Switch", target: "Database"},
+                {source: "Switch", target: "EmailServer"},
+                {source: "Switch", target: "WebServer"},
+                {source: "Server1", target: "Workstation1"},
+                {source: "Server1", target: "Workstation2"},
+                {source: "Server2", target: "EmployeePC1"},
+                {source: "Server2", target: "EmployeePC2"},
+                {source: "Server2", target: "Printer"},
+                {source: "Database", target: "BackupServer"},
+                {source: "Client", target: "WebServer"},
+                // Malware propagation (Anomaly)
+                {source: "Infected_Workstation", target: "Infected_Server"},
+                // Man-in-the-Middle attack (Anomaly)
+                {source: "Client", target: "MITM_Attacker"},
+                {source: "MITM_Attacker", target: "Server2"},
+                // DDoS attack connections (Anomaly)
+                {source: "BotnetDevice1", target: "Server1"},
+                {source: "BotnetDevice2", target: "Server1"},
+                {source: "BotnetDevice3", target: "Server1"},
+                {source: "BotnetDevice4", target: "Server1"},
+                {source: "BotnetDevice5", target: "Server1"},
+                // Data exfiltration connection (Anomaly)
+                {source: "Workstation1", target: "MaliciousServer"}
+            ]
+        };
 
-        const simulation = d3.forceSimulation(nodes)
-            .force("link", d3.forceLink(links).id(d => d.id).distance(150))
-            .force("charge", d3.forceManyBody().strength(-400))
-            .force("center", d3.forceCenter(width / 2, height / 2))
-            .force("collision", d3.forceCollide().radius(25));
+        const simulation = d3.forceSimulation(data.nodes)
+            .force("link", d3.forceLink(data.links).id(d => d.id).distance(120))
+            .force("charge", d3.forceManyBody().strength(-500))
+            .force("center", d3.forceCenter(0, 0))
+            .force("collision", d3.forceCollide().radius(50));
 
-        // Define arrow markers for links
-        svg.append("defs")
-            .append("marker")
-            .attr("id", "arrowhead")
-            .attr("viewBox", "0 -5 10 10")
-            .attr("refX", 15)
-            .attr("refY", 0)
-            .attr("markerWidth", 6)
-            .attr("markerHeight", 6)
-            .attr("orient", "auto")
-            .append("path")
-            .attr("d", "M0,-5L10,0L0,5")
-            .attr("fill", "#999");
-
-        const linkElements = svg.append("g")
+        const link = container.append("g")
             .attr("class", "links")
             .selectAll("line")
-            .data(links)
+            .data(data.links)
             .enter().append("line")
-            .attr("class", d => d.anomaly ? "link anomaly" : "link");
+            .attr("class", d => {
+                if (d.source.group === 5 || d.target.group === 5) {
+                    return "link anomaly";
+                }
+                return "link";
+            })
+            .attr("stroke-width", 2);
 
-        const nodeElements = svg.append("g")
+        const node = container.append("g")
             .attr("class", "nodes")
             .selectAll("circle")
-            .data(nodes)
+            .data(data.nodes)
             .enter().append("circle")
-            .attr("class", d => {
-                if (d.anomaly) return "node anomaly";
-                if (d.type === "server") return "node server";
-                if (d.type === "device") return "node device";
-                return "node user";
+            .attr("class", d => d.group === 5 ? "node anomaly" : "node")
+            .attr("r", 20)
+            .attr("fill", d => {
+                if (d.group === 1) return "#1f77b4"; // Blue
+                if (d.group === 2) return "#ff7f0e"; // Orange
+                if (d.group === 3) return "#2ca02c"; // Green
+                if (d.group === 4) return "#9467bd"; // Purple
+                return "#d62728"; // Red for anomalies
             })
-            .attr("r", 15)
-            .call(d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended));
+            .call(drag(simulation));
 
-        const labels = svg.append("g")
+        // Add labels to nodes
+        const labels = container.append("g")
             .attr("class", "labels")
             .selectAll("text")
-            .data(nodes)
+            .data(data.nodes)
             .enter().append("text")
-            .attr("dy", -25) // Increased dy for better spacing
-            .attr("text-anchor", "middle")
-            .text(d => d.id)
-            .style("font-size", "12px");
+            .attr("class", "label")
+            .attr("dx", 12)
+            .attr("dy", ".35em")
+            .text(d => d.id);
+
+        node.on("mouseover", (event, d) => {
+            tooltip.transition().duration(200).style("opacity", .9);
+            let anomalyType = "";
+            if (d.id.startsWith("BotnetDevice")) {
+                anomalyType = "DDoS Attacker";
+            } else if (d.id === "MaliciousServer") {
+                anomalyType = "Data Exfiltration Destination";
+            } else if (d.id === "MITM_Attacker") {
+                anomalyType = "Man-in-the-Middle Attacker";
+            } else if (d.id.startsWith("Infected_")) {
+                anomalyType = "Malware Infected Device";
+            }
+            tooltip.html(`Device: ${d.id}${anomalyType ? "<br>Type: " + anomalyType : ""}`)
+                .style("left", (event.pageX + 5) + "px")
+                .style("top", (event.pageY - 28) + "px");
+        })
+        .on("mouseout", () => {
+            tooltip.transition().duration(500).style("opacity", 0);
+        });
 
         simulation.on("tick", () => {
-            linkElements
+            link
                 .attr("x1", d => d.source.x)
                 .attr("y1", d => d.source.y)
                 .attr("x2", d => d.target.x)
                 .attr("y2", d => d.target.y);
 
-            nodeElements
+            node
                 .attr("cx", d => d.x)
                 .attr("cy", d => d.y);
 
             labels
                 .attr("x", d => d.x)
                 .attr("y", d => d.y);
-
-            // Constrain nodes within the SVG boundaries, considering label height
-            const labelOffset = 25; // Adjusted for dy = -25
-            nodes.forEach(d => {
-                const radius = 15;
-                d.x = Math.max(radius, Math.min(width - radius, d.x));
-                d.y = Math.max(radius + labelOffset, Math.min(height - radius, d.y));
-            });
         });
 
-        function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.5).restart();
-            d.fx = d.x;
-            d.fy = d.y;
+        function drag(simulation) {
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+
+            return d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended);
         }
 
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
-        }
+        // Apply initial zoom to center the graph within the viewport
+        const initialScale = 0.8;
+        svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(initialScale));
 
-        function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
-
-        // Save SVG as PNG
-        document.getElementById("saveBtn").addEventListener("click", () => {
-            const svgElement = document.getElementById("graph");
-            const serializer = new XMLSerializer();
-            const svgString = serializer.serializeToString(svgElement);
-            const canvas = document.createElement("canvas");
-            canvas.width = svgElement.clientWidth;
-            canvas.height = svgElement.clientHeight;
-            const ctx = canvas.getContext("2d");
-
-            const img = new Image();
-            const svgBlob = new Blob([svgString], {type: "image/svg+xml;charset=utf-8"});
-            const url = URL.createObjectURL(svgBlob);
-
-            img.onload = () => {
-                ctx.drawImage(img, 0, 0);
-                URL.revokeObjectURL(url);
-                const png = canvas.toDataURL("image/png");
-                const a = document.createElement("a");
-                a.href = png;
-                a.download = "network_graph.png";
-                a.click();
-            };
-            img.src = url;
-        });
     </script>
 </body>
 </html>
